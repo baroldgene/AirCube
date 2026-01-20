@@ -81,7 +81,7 @@ uint32_t get_next_color_full_spectrum(void) {
 
     // Increment hue for next call
     current_hue += hue_increment;
-    if (current_hue >= 65536) current_hue = 0;  // Wrap around
+    // Wrap around happens automatically with uint16_t overflow
 
     return color;
 }

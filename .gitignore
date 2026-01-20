@@ -8,3 +8,5 @@ venv/
 .DS_Store
 hardware/racer/fp-info-cache
 hardware/racer/racer-backups
+firmware/.cache/clangd/index
+firmware/managed_components/espressif__cjson

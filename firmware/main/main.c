@@ -1,4 +1,4 @@
-#include "freertos/FreeRTOS.h"
+  #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_log.h"
@@ -13,8 +13,17 @@
 #include "i2c_driver.h"
 #include "serial_protocol.h"
 #include "button.h"
+#include "ble_advertiser.h"
+#include "device_config.h"
 
 static const char *TAG = "main";
+
+// Global sensor data for BLE advertising
+static float g_temperature = 0.0f;
+static float g_humidity = 0.0f;
+static uint16_t g_tvoc = 0;
+static uint16_t g_co2 = 0;
+static uint8_t g_aqi = 0;
 
 #define SENSOR_TASK_STACK_SIZE 4096
 #define SENSOR_TASK_PRIORITY 5
@@ -84,99 +93,39 @@ static uint16_t aqi_to_hue(int aqi)
     if (aqi < AQI_MIN) aqi = AQI_MIN;
     if (aqi > AQI_MAX) aqi = AQI_MAX;
     
-    // Values 0-10 are pure green
+    // Values 0-10 stay at green
     if (aqi <= AQI_GREEN_THRESHOLD) {
-        return HUE_GREEN;
+        return HUE_GREEN;  // Pure green
     }
     
-    // For values 10-200, map smoothly from green to red
-    // Map AQI from [10, 200] to ratio [0.0, 1.0] for smooth gradient
-    // When AQI = 10: ratio = 0.0 (green)
-    // When AQI = 200: ratio = 1.0 (red)
-    float ratio = (float)(aqi - AQI_GREEN_THRESHOLD) / (float)(AQI_MAX - AQI_GREEN_THRESHOLD);
-    
-    // Linear interpolation from green to red
-    // ratio = 0.0 -> hue = HUE_GREEN (green)
-    // ratio = 1.0 -> hue = 0 (red)
-    uint16_t hue = HUE_GREEN - (uint16_t)(ratio * HUE_GREEN);
+    // Map AQI 10-200 to hue values from 21845 (green) to 0 (red)
+    // Linear interpolation from green (21845) at AQI=10 to red (0) at AQI=200
+    float normalized = (float)(aqi - AQI_GREEN_THRESHOLD) / (float)(AQI_MAX - AQI_GREEN_THRESHOLD);
+    uint16_t hue = HUE_GREEN - (uint16_t)(normalized * HUE_GREEN);
     
     return hue;
 }
 
 /**
- * @brief Startup animation - sweeps from green to red and back to green
+ * @brief Get pulsing color with intensity control
  * 
- * This function displays a 3-second animation that smoothly transitions
- * from green to red and back to green when the device starts up.
- * Uses time-based animation to ensure accurate timing.
+ * Applies a sinusoidal pulsing effect (1Hz) to the specified RGB color.
+ * The LED task will then apply the user's brightness setting to the result.
+ * 
+ * @param red Red component (0-255)
+ * @param green Green component (0-255)
+ * @param blue Blue component (0-255)
+ * @return 32-bit GRB color value with pulsing applied
  */
-static void startup_animation(void) {
-    const uint32_t ANIMATION_DURATION_MS = 3000;  // 3 seconds total
-    const uint32_t UPDATE_INTERVAL_MS = 10;  // Update every 10ms for smooth animation
+static uint32_t get_pulsing_color_with_intensity(uint8_t red, uint8_t green, uint8_t blue)
+{
+    // Increment pulse time (50ms per update gives us a 1Hz pulse: 1000ms / 50ms = 20 steps per second)
+    pulse_time_ms += PULSE_MS;
     
-    // Get start time in ticks
-    TickType_t start_ticks = xTaskGetTickCount();
-    TickType_t duration_ticks = pdMS_TO_TICKS(ANIMATION_DURATION_MS);
-    
-    while (1) {
-        // Calculate elapsed time
-        TickType_t current_ticks = xTaskGetTickCount();
-        TickType_t elapsed_ticks = current_ticks - start_ticks;
-        
-        // Check if animation is complete
-        if (elapsed_ticks >= duration_ticks) {
-            break;
-        }
-        
-        // Calculate progress from 0.0 to 1.0 based on elapsed time
-        float progress = (float)elapsed_ticks / (float)duration_ticks;
-        
-        uint16_t hue;
-        if (progress <= 0.5f) {
-            // First half: green to red (0.0 to 0.5)
-            float ratio = progress * 2.0f;  // 0.0 to 1.0
-            hue = HUE_GREEN - (uint16_t)(ratio * HUE_GREEN);
-        } else {
-            // Second half: red back to green (0.5 to 1.0)
-            float ratio = (progress - 0.5f) * 2.0f;  // 0.0 to 1.0
-            hue = (uint16_t)(ratio * HUE_GREEN);
-        }
-        
-        // Get color from hue (intensity is applied by LED task)
-        uint32_t color = get_color_from_hue(hue);
-        led_set_color(color);
-        
-        // Delay until next update
-        vTaskDelay(pdMS_TO_TICKS(UPDATE_INTERVAL_MS));
-    }
-    
-    // Ensure we end on green
-    uint32_t final_color = get_color_from_hue(HUE_GREEN);
-    led_set_color(final_color);
-}
-
-/**
- * @brief Get pulsing color effect with intensity support
- * 
- * This function creates a pulsing effect by modulating the brightness of a given
- * color using a sine wave. The pulse goes from 0 to full brightness (255) at peak.
- * The LED task will apply the intensity setting, so the pulse will respect the
- * configured brightness level (pulse peak = intensity * 255).
- * 
- * @param red Red component of the base color (0-255)
- * @param green Green component of the base color (0-255)
- * @param blue Blue component of the base color (0-255)
- * @return 24-bit GRB color value with pulsing brightness (intensity applied by LED task)
- */
-static uint32_t get_pulsing_color_with_intensity(uint8_t red, uint8_t green, uint8_t blue) {
-    // Increment the time (function is called every 20ms)
-    pulse_time_ms += 20;
-    
-    // Calculate the phase of the pulse (0 to 2π) using modulo to wrap around
-    float phase = ((pulse_time_ms % PULSE_MS) / (float)PULSE_MS) * 2 * M_PI;
-
-    // Use a sine wave to create a smooth pulse (range: 0 to 1.0 for full brightness)
-    float pulse_brightness = (sinf(phase) + 1.0f) / 2.0f;  // Range: 0.0 to 1.0
+    // Calculate pulse brightness using sine wave (0.5 to 1.0 range)
+    // Period = 1000ms (1Hz), so 2π radians per second
+    float angle = (2.0f * 3.14159f * pulse_time_ms) / 1000.0f;
+    float pulse_brightness = 0.5f + 0.5f * sinf(angle);
 
     // Apply the pulse brightness to the specified color (0 to 255)
     // The LED task will apply the intensity setting, so we pulse to full brightness here
@@ -230,6 +179,16 @@ void sensor_task(void *pvParameters)
         current_aqi = aqi;
         current_ens16x_status = ens16x_status;
         
+        // Update global sensor data for BLE
+        g_temperature = temp_c;
+        g_humidity = humidity;
+        g_tvoc = etvoc;
+        g_co2 = eco2;
+        g_aqi = aqi;
+        
+        // Update BLE advertisement data
+        ble_advertiser_update_data(temp_c, humidity, etvoc, eco2, aqi);
+        
         // Helper function to convert ENS16X status to string
         const char* ens16x_status_str;
         switch(ens16x_status) {
@@ -269,11 +228,11 @@ void sensor_task(void *pvParameters)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "AirCube");
+    ESP_LOGI(TAG, "%s starting with BLE", DEVICE_NAME);
 
     // Configure power management with automatic light sleep
     // Note: ESP32-H2 uses the same structure as ESP32-C2 (both RISC-V based)
-    esp_pm_config_esp32c2_t pm_config = {
+    esp_pm_config_t pm_config = {
         .max_freq_mhz = 10,           // Maximum CPU frequency (MHz)
         .min_freq_mhz = 10,            // Minimum CPU frequency (MHz)
         .light_sleep_enable = false    // Enable automatic light sleep when idle
@@ -296,6 +255,12 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
     ESP_LOGI(TAG, "NVS initialized");
+
+    // Initialize BLE advertising
+    ESP_LOGI(TAG, "Initializing BLE...");
+    ble_advertiser_init(DEVICE_NAME);
+    ble_advertiser_start();
+    ESP_LOGI(TAG, "BLE advertising started");
 
     // Initialize I2C driver (must be done before initializing sensors)
     if (i2c_driver_init() != ESP_OK) {
@@ -380,4 +345,3 @@ void app_main(void)
         led_set_color(color);
     }
 }
-

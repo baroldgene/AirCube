@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+# User configuration (contains WiFi/MQTT credentials)
+main/user_config.h
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Managed components
+managed_components/
