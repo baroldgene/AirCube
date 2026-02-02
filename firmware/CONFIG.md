@@ -31,7 +31,7 @@ This firmware supports compile-time configuration to avoid needing serial setup.
 2. **Build and flash:**
 ```bash
 cd firmware
-. $IDF_PATH/export.sh
+. "$IDF_PATH/export.sh"
 idf.py build
 idf.py -p /dev/ttyUSB0 flash  # Adjust port: macOS uses /dev/cu.*, Linux uses /dev/ttyUSB* or /dev/ttyACM*
 ```
