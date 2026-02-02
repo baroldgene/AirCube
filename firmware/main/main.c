@@ -242,7 +242,7 @@ void app_main(void)
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to configure power management: %s", esp_err_to_name(ret));
     } else {
-        ESP_LOGI(TAG, "Power management configured with automatic light sleep enabled");
+        ESP_LOGI(TAG, "Power management configured with automatic light sleep disabled");
     }
 
     // Initialize NVS (Non-Volatile Storage) for saving settings

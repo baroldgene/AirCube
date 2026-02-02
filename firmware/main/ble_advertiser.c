@@ -27,7 +27,7 @@ static const char *TAG = "ble_adv";
 #define BTHOME_OBJ_COUNT         0x09  // Generic count (uint8) - used for AQI
 
 static bool s_advertising = false;
-static char s_device_name[21] = "AirCube";
+static char s_device_name[11] = "AirCube";  // Max 10 chars + null terminator to fit in 31-byte BLE packet
 static uint8_t s_packet_toggle = 0;  // Alternates between packet types for smart updates
 
 // Sensor data storage
@@ -172,6 +172,11 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
 void ble_advertiser_init(const char *device_name)
 {
     if (device_name) {
+        size_t name_len = strlen(device_name);
+        if (name_len > 10) {
+            ESP_LOGW(TAG, "Device name '%s' exceeds 10 character limit, truncating to prevent buffer overflow", device_name);
+        }
+        // Always use strncpy with buffer size limit (10 chars + null terminator)
         strncpy(s_device_name, device_name, sizeof(s_device_name) - 1);
         s_device_name[sizeof(s_device_name) - 1] = '\0';
     }

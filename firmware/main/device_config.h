@@ -24,12 +24,12 @@
  * 
  * Examples:
  *   - "AirCube"
- *   - "AirCube-Living"
- *   - "AirCube-Bedroom"
- *   - "AirCube-Kitchen"
+ *   - "Living"
+ *   - "Bedroom"
+ *   - "Kitchen"
  *   - "AirCube1", "AirCube2", etc.
  * 
- * Max length: 20 characters
+ * Max length: 10 characters (due to BLE advertisement packet size limit of 31 bytes)
  */
 #define DEVICE_NAME "AirCube"
 
