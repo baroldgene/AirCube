@@ -20,7 +20,7 @@
  * Sets up the BLE stack and prepares for advertising.
  * Call this once during system initialization.
  * 
- * @param device_name Device name to broadcast (max 20 characters)
+ * @param device_name Device name to broadcast (max 10 characters, will be truncated if longer)
  */
 void ble_advertiser_init(const char *device_name);
 

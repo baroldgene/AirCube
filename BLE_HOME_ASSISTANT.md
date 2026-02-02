@@ -143,16 +143,18 @@ Deploy multiple ESP32 Bluetooth proxies throughout your home for seamless covera
 
 To change the broadcast name from "AirCube":
 
-1. Edit `/firmware/main/main.c`
+1. Edit `/firmware/main/device_config.h`
 2. Find line:
    ```c
-   ble_advertiser_init("AirCube");
+   #define DEVICE_NAME "AirCube"
    ```
-3. Change to your desired name (max 20 characters):
+3. Change to your desired name (max 10 characters):
    ```c
-   ble_advertiser_init("Living Room Air");
+   #define DEVICE_NAME "Living"
    ```
 4. Rebuild and flash firmware
+
+**Note:** Device names are limited to 10 characters due to BLE advertisement packet size constraints (31 bytes maximum).
 
 ## Power Consumption
 
