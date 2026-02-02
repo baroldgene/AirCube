@@ -31,9 +31,9 @@ This firmware supports compile-time configuration to avoid needing serial setup.
 2. **Build and flash:**
 ```bash
 cd firmware
-. "/Users/skoolie/.espressif/v6.0-beta1/esp-idf/export.sh"
+. "$IDF_PATH/export.sh"
 idf.py build
-idf.py -p /dev/cu.usbmodem101 flash
+idf.py -p /dev/ttyUSB0 flash  # Adjust port: macOS uses /dev/cu.*, Linux uses /dev/ttyUSB* or /dev/ttyACM*
 ```
 
 3. **Done!** The device will automatically connect to WiFi and MQTT on boot.
@@ -68,7 +68,7 @@ The template file `main/user_config.h.template` is safe to commit (contains no r
 
 To see device output:
 ```bash
-idf.py -p /dev/cu.usbmodem101 monitor
+idf.py -p /dev/ttyUSB0 monitor  # Adjust port: macOS uses /dev/cu.*, Linux uses /dev/ttyUSB* or /dev/ttyACM*
 ```
 
 Press `Ctrl+]` to exit monitor.
