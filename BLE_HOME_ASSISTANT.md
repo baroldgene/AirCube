@@ -4,12 +4,6 @@
 
 The AirCube now broadcasts sensor data via **Bluetooth LE (BLE)** using the **BTHome v2** format, which is automatically discovered and integrated by Home Assistant.
 
-## What Changed from WiFi/MQTT Plan
-
-**Original Plan:** WiFi + MQTT connectivity  
-**Problem:** ESP32-H2 does NOT support WiFi (only BLE + Thread/Zigbee)  
-**Solution:** BLE advertising with BTHome v2 format
-
 ## How It Works
 
 1. **AirCube broadcasts BLE advertisements** every 0.5-1 second
@@ -22,13 +16,13 @@ The AirCube now broadcasts sensor data via **Bluetooth LE (BLE)** using the **BT
 
 The following sensor readings are included in each BLE advertisement:
 
-| Sensor Type | BTHome Object ID | Unit | Description |
-|------------|------------------|------|-------------|
-| Temperature | 0x02 | °C | Air temperature (0.01°C resolution) |
-| Humidity | 0x03 | % | Relative humidity (0.01% resolution) |
-| AQI | 0x09 | - | Air Quality Index (0-500, UBA scale) |
-| TVOC | 0x13 | ppb | Total Volatile Organic Compounds (alternating) |
-| CO2 | 0x12 | ppm | Carbon Dioxide equivalent (alternating) |
+| Sensor Type | BTHome Object ID | Unit | Description                                    |
+| ----------- | ---------------- | ---- | ---------------------------------------------- |
+| Temperature | 0x02             | °C   | Air temperature (0.01°C resolution)            |
+| Humidity    | 0x03             | %    | Relative humidity (0.01% resolution)           |
+| AQI         | 0x09             | -    | Air Quality Index (0-500, UBA scale)           |
+| TVOC        | 0x13             | ppb  | Total Volatile Organic Compounds (alternating) |
+| CO2         | 0x12             | ppm  | Carbon Dioxide equivalent (alternating)        |
 
 **Note:** TVOC and CO2 alternate in advertisements to keep packet size under 31 bytes. Each sensor updates every ~2 seconds while Temperature, Humidity, and AQI update every second.
 
@@ -49,16 +43,16 @@ If your Home Assistant server has Bluetooth:
    - Click **+ Add Integration**
    - Search for **Bluetooth** and add it
 
-2. **Enable BTHome Integration**
+1. **Enable BTHome Integration**
    - Go to **Settings → Devices & Services**
-   - Click **+ Add Integration**  
+   - Click **+ Add Integration**
    - Search for **BTHome** and add it
 
-3. **Power on AirCube**
+1. **Power on AirCube**
    - The device will automatically appear as "AirCube" in Home Assistant
    - All sensors will be auto-created
 
-4. **View Sensors**
+1. **View Sensors**
    - Go to **Settings → Devices & Services → BTHome**
    - Click on **AirCube** device
    - All 5 sensors should be visible (Temperature, Humidity, Count, TVOC, CO2)
@@ -69,39 +63,40 @@ If your Home Assistant server has Bluetooth:
 Use an ESP32 board as a Bluetooth proxy to extend range:
 
 1. **Flash ESPHome to an ESP32**
+
    ```yaml
    esphome:
      name: bluetooth-proxy
      friendly_name: Bluetooth Proxy
-   
+
    esp32:
      board: esp32dev
-   
+
    wifi:
      ssid: "YourWiFiSSID"
      password: "YourWiFiPassword"
-   
+
    api:
      encryption:
        key: "your-api-key"
-   
+
    ota:
      password: "your-ota-password"
-   
+
    logger:
-   
+
    esp32_ble_tracker:
      scan_parameters:
        interval: 1100ms
        window: 1100ms
        active: true
-   
+
    bluetooth_proxy:
      active: true
    ```
 
-2. **Add ESPHome device to Home Assistant**
-3. **AirCube will be discovered through the proxy**
+1. **Add ESPHome device to Home Assistant**
+1. **AirCube will be discovered through the proxy**
 
 ### Option 3: Multiple Proxies (Best Coverage)
 
@@ -112,21 +107,23 @@ Deploy multiple ESP32 Bluetooth proxies throughout your home for seamless covera
 ### Device Not Discovered
 
 1. **Check Bluetooth is enabled** on Home Assistant
+
    ```bash
    bluetoothctl show
    ```
 
-2. **Verify AirCube is advertising**
+1. **Verify AirCube is advertising**
    - Check serial output for "Advertising started successfully"
    - LED should be pulsing blue during warm-up, then color-coded by AQI
 
-3. **Scan for BLE devices manually**
+1. **Scan for BLE devices manually**
+
    ```bash
    bluetoothctl scan on
    # Look for "AirCube" in the list
    ```
 
-4. **Check range** - BLE typically works within 10-30 feet (3-10 meters)
+1. **Check range** - BLE typically works within 10-30 feet (3-10 meters)
 
 ### Sensors Showing "Unavailable"
 
@@ -157,6 +154,7 @@ To change the broadcast name from "AirCube":
 ## Power Consumption
 
 BLE advertising is very power-efficient:
+
 - **Active broadcasting:** ~15-20 mA
 - **Sleep between advertisements:** ~1-5 mA
 - **Battery life estimate:** 2-4 weeks on 500mAh battery (typical usage)
@@ -172,42 +170,13 @@ Service Data: [Length, 0x16, 0xD2, 0xFC, 0x40, ...sensor data...]
 ```
 
 Sensor data format (little-endian):
-- **0x02** (Temperature): 2 bytes signed int16 (value * 100)
-- **0x03** (Humidity): 2 bytes unsigned int16 (value * 100)
+
+- **0x02** (Temperature): 2 bytes signed int16 (value \* 100)
+- **0x03** (Humidity): 2 bytes unsigned int16 (value \* 100)
 - **0x13** (TVOC): 2 bytes unsigned int16
-- **0x12** (CO2): 2 bytes unsigned int16  
+- **0x12** (CO2): 2 bytes unsigned int16
 - **0x0D** (PM2.5/AQI): 2 bytes unsigned int16
 - **0x01** (Battery): 1 byte unsigned int8
-
-## Comparison: BLE vs WiFi/MQTT
-
-| Feature | BLE (Current) | WiFi/MQTT (Not Possible) |
-|---------|--------------|---------------------------|
-| Hardware Support | ✅ ESP32-H2 | ❌ ESP32-H2 lacks WiFi |
-| Auto-Discovery | ✅ BTHome | ✅ MQTT Discovery |
-| Setup Complexity | ✅ Zero config | ⚠️ Requires WiFi credentials |
-| Power Consumption | ✅ Very low | ⚠️ Higher |
-| Range | ⚠️ ~30 ft | ✅ WiFi range |
-| Bandwidth | ✅ Sufficient | ✅ High |
-| Security | ⚠️ Unencrypted | ✅ Can be encrypted |
-
-## Future Enhancements
-
-Potential upgrades using ESP32-H2 capabilities:
-
-1. **Thread/Matter Support**
-   - ESP32-H2 is Thread 1.3.0 certified
-   - Could implement Matter over Thread for mesh networking
-   - Requires Thread Border Router
-
-2. **BLE + Thread Hybrid**
-   - Use BLE for initial setup
-   - Switch to Thread mesh for ongoing communication
-   - Best of both worlds
-
-3. **Encrypted BLE**
-   - BTHome v2 supports encryption
-   - Would require pairing process
 
 ## References
 
@@ -215,11 +184,3 @@ Potential upgrades using ESP32-H2 capabilities:
 - [Home Assistant Bluetooth Integration](https://www.home-assistant.io/integrations/bluetooth/)
 - [ESPHome Bluetooth Proxy](https://esphome.io/components/bluetooth_proxy.html)
 - [ESP32-H2 Datasheet](https://www.espressif.com/en/products/socs/esp32-h2)
-
-## Support
-
-For issues or questions:
-1. Check serial output via USB for BLE status messages
-2. Verify LED behavior (blue = warm-up, green/yellow/red = AQI)
-3. Use `bluetoothctl` to manually verify BLE advertisements
-4. Check Home Assistant logs for BTHome integration errors
