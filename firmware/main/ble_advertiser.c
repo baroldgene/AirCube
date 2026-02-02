@@ -175,12 +175,10 @@ void ble_advertiser_init(const char *device_name)
         size_t name_len = strlen(device_name);
         if (name_len > 10) {
             ESP_LOGW(TAG, "Device name '%s' exceeds 10 character limit, truncating to prevent buffer overflow", device_name);
-            strncpy(s_device_name, device_name, 10);
-            s_device_name[10] = '\0';
-        } else {
-            strncpy(s_device_name, device_name, sizeof(s_device_name) - 1);
-            s_device_name[sizeof(s_device_name) - 1] = '\0';
         }
+        // Always use strncpy with buffer size limit (10 chars + null terminator)
+        strncpy(s_device_name, device_name, sizeof(s_device_name) - 1);
+        s_device_name[sizeof(s_device_name) - 1] = '\0';
     }
     
     ESP_LOGI(TAG, "Initializing BLE advertiser for device: %s", s_device_name);
