@@ -11,7 +11,7 @@
 #include "esp_bt.h"
 #include "esp_gap_ble_api.h"
 #include "esp_bt_main.h"
-#include "nvs_flash.h"
+
 #include <string.h>
 
 static const char *TAG = "ble_adv";
