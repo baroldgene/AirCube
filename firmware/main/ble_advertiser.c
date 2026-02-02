@@ -22,7 +22,7 @@ static const char *TAG = "ble_adv";
 // BTHome v2 object IDs
 #define BTHOME_OBJ_TEMPERATURE   0x02  // Temperature in 0.01°C
 #define BTHOME_OBJ_HUMIDITY      0x03  // Humidity in 0.01%
-#define BTHOME_OBJ_TVOC          0x13  // TVOC in µg/m³
+#define BTHOME_OBJ_TVOC          0x13  // TVOC in ppb
 #define BTHOME_OBJ_CO2           0x12  // CO2 in ppm
 #define BTHOME_OBJ_COUNT         0x09  // Generic count (uint8) - used for AQI
 
